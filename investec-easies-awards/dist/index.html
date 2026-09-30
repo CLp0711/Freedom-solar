@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Freedom Solar — Financial Architecture & Sinking Fund Engine</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --brand-green: #46D19F;
+      --brand-gold: #E1AD10;
+      --brand-purple: #8D4EbC;
+      --brand-blue: #38bdf8;
+      --brand-red: #f87171;
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-bg-2: #0d1524;
+      --text-light: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg-dark); color: var(--text-light); padding: 20px; display: flex; justify-content: center; }
+
+    .container { width: 100%; max-width: 1180px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); }
+
+    /* Tab Navigation */
+    .tab-nav { display: flex; gap: 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 24px; padding-bottom: 12px; flex-wrap: wrap; }
+    .tab-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); font-weight: 650; font-size: 0.88rem; padding: 10px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
+    .tab-btn:hover { border-color: var(--brand-green); color: var(--text-light); }
+    .tab-btn.active { background: var(--brand-green); color: #091e15; border-color: var(--brand-green); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Headers & Controls */
+    .header { margin-bottom: 20px; }
+    .header h2 { font-size: 1.4rem; color: var(--brand-green); margin-bottom: 4px; }
+    .header p { font-size: 0.85rem; color: var(--text-muted); }
+
+    .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; background: var(--bg-dark); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+    .control-group { display: flex; flex-direction: column; gap: 6px; }
+    .control-group label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+    .control-group label span { color: var(--brand-gold); font-weight: 600; }
+    
+    .capex-input-wrapper { display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px 8px; }
+    .capex-input-wrapper span { font-size: 0.85rem; color: var(--brand-gold); font-weight: 600; }
+    .capex-num-input { background: transparent; border: none; color: var(--brand-gold); font-size: 0.85rem; font-weight: 600; width: 100%; outline: none; text-align: right; }
+
+    select, input[type=range] { accent-color: var(--brand-green); cursor: pointer; }
+    select { background: var(--card-bg); color: var(--text-light); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; outline: none; }
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .metric-card { background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 16px; }
+    .metric-card.green-border { border-left: 4px solid var(--brand-green); }
+    .metric-card.gold-border { border-left: 4px solid var(--brand-gold); }
+    .metric-card.purple-border { border-left: 4px solid var(--brand-purple); }
+    .metric-card.blue-border { border-left: 4px solid var(--brand-blue); }
+
+    .metric-card .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
+    .metric-card .value { font-size: 1.15rem; font-weight: 700; margin-top: 4px; }
+
+    .val-green { color: var(--brand-green); }
+    .val-gold { color: var(--brand-gold); }
+    .val-purple { color: var(--brand-purple); }
+    .val-blue { color: var(--brand-blue); }
+
+    .investec-summary { background: #091e15; border: 1px solid var(--brand-green); border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .investec-item { display: flex; flex-direction: column; }
+    .investec-item .sub-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
+    .investec-item .sub-val { font-size: 1.1rem; font-weight: 700; color: var(--brand-green); margin-top: 2px; }
+
+    .risk-banner { background: var(--bg-dark); border: 1px solid var(--border-color); border-left: 4px solid var(--brand-blue); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+    .risk-banner h3 { font-size: 0.95rem; color: var(--brand-blue); margin-bottom: 6px; }
+    .risk-banner p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+
+    .chart-wrapper { position: relative; height: 380px; width: 100%; margin-bottom: 12px; }
+
+    .equilibrium-badge { background: rgba(56, 189, 248, 0.15); border: 1px solid var(--brand-blue); color: var(--brand-blue); padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 8px; }
+
+    /* Breakdown Section Styling */
+    .breakdown-box { background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 18px; margin-top: 20px; margin-bottom: 20px; }
+    .breakdown-box h3 { font-size: 1.05rem; color: var(--brand-blue); margin-bottom: 8px; }
+    .breakdown-box p { font-size: 0.83rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 14px; }
+    
+    .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.82rem; }
+    .data-table th, .data-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    .data-table th { background: var(--card-bg); color: var(--brand-green); font-weight: 600; text-transform: uppercase; font-size: 0.72rem; }
+    .data-table tr:hover { background: rgba(255, 255, 255, 0.02); }
+    .highlight-row { background: rgba(56, 189, 248, 0.1) !important; font-weight: 700; }
+
+    .footer { margin-top: 16px; font-size: 0.72rem; color: var(--text-muted); text-align: left; line-height: 1.5; border-top: 1px solid var(--border-color); padding-top: 12px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('simulator')">1. Yield Simulator</button>
+      <button class="tab-btn" onclick="switchTab('arbitrage-engine')">2. Arbitrage & Sinking Fund Engine</button>
+    </div>
+
+    <!-- MODULE 1: YIELD SIMULATOR -->
+    <div id="tab-simulator" class="tab-content active">
+      <div class="header">
+        <h2>Freedom Solar, Integrated Debt & Yield Simulator</h2>
+        <p>Dynamic platform modelling with Investec senior debt funding, adjustable O&M (1–2%), and recurring fee parameters.</p>
+      </div>
+
+      <div class="controls-grid">
+        <div class="control-group">
+          <label>Deal Type: <span id="dealTypeVal">Single Installation</span></label>
+          <select id="dealTypeSelect">
+            <option value="1" selected>Single Live Installation (1)</option>
+            <option value="5">5 Live Installations Portfolio</option>
+            <option value="10">10 Live Installations Portfolio</option>
+            <option value="15">15 Live Installations Portfolio</option>
+          </select>
+        </div>
+        
+        <div class="control-group">
+          <label>Total CAPEX (Per Site):</label>
+          <div class="capex-input-wrapper">
+            <span>R</span>
+            <input type="text" id="capexText" class="capex-num-input" value="10 000 000">
+          </div>
+          <input type="range" id="capex" min="1000000" max="25000000" step="250000" value="10000000">
+        </div>
+
+        <div class="control-group">
+          <label>O&M Cost (% of CAPEX): <span id="omPctVal">1.5%</span></label>
+          <input type="range" id="omPct" min="1.0" max="2.0" step="0.1" value="1.5">
+        </div>
+
+        <div class="control-group">
+          <label>Freedom Upfront Fee: <span id="placementVal">2.0%</span></label>
+          <input type="range" id="placementFee" min="0.5" max="5.0" step="0.1" value="2.0">
+        </div>
+
+        <div class="control-group">
+          <label>Freedom Recurring Fee: <span id="freedomRecVal">1.5%</span></label>
+          <input type="range" id="freedomRecPct" min="0.5" max="3.0" step="0.1" value="1.5">
+        </div>
+
+        <div class="control-group">
+          <label>Target Investor Yr 1 ROI: <span id="targetRoiVal">25.0%</span></label>
+          <input type="range" id="targetRoi" min="10.0" max="35.0" step="0.5" value="25.0">
+        </div>
+
+        <div class="control-group">
+          <label>Solar PPA Rate: <span id="ppaVal">R1.80/kWh</span></label>
+          <input type="range" id="ppa" min="1.00" max="3.00" step="0.05" value="1.80">
+        </div>
+
+        <div class="control-group">
+          <label>Municipal / Eskom Tariff: <span id="arbitrageVal">R3.50/kWh</span></label>
+          <input type="range" id="arbitrage" min="2.00" max="8.00" step="0.10" value="3.50">
+        </div>
+
+        <div class="control-group">
+          <label>CRE Commission Rate: <span id="creCommPctVal">5.0%</span></label>
+          <input type="range" id="creCommPct" min="1.0" max="10.0" step="0.5" value="5.0">
+        </div>
+
+        <div class="control-group">
+          <label>Investec Debt Rate: <span id="jibarVal">10.50%</span></label>
+          <input type="range" id="jibar" min="6.0" max="15.0" step="0.25" value="10.50">
+        </div>
+      </div>
+
+      <div class="investec-summary">
+        <div class="investec-item">
+          <span class="sub-label">Investec Debt Facility (70%)</span>
+          <span class="sub-val" id="investecPrincipal">R 7,000,000</span>
+        </div>
+        <div class="investec-item">
+          <span class="sub-label">Annual Debt Service (10-Yr Term)</span>
+          <span class="sub-val" id="investecAnnualService">R 1,163,810</span>
+        </div>
+        <div class="investec-item">
+          <span class="sub-label">Retail Investor Equity (30%)</span>
+          <span class="sub-val" id="equityAmountVal">R 3,000,000</span>
+        </div>
+        <div class="investec-item" id="dscrBox">
+          <span class="sub-label">Debt Service Coverage Ratio</span>
+          <span class="sub-val" id="investecDscrVal">1.71x DSCR</span>
+        </div>
+      </div>
+
+      <div class="risk-banner">
+        <h3>Hardware-Enforced Risk Framework</h3>
+        <p>Freedom Solar’s risk framework is built around <strong>hardware-enforced compliance</strong>, eliminating reliance on manual legal threats or protracted court proceedings. Default resolution is instant, automated, and enforced directly at the asset level via smart switchgear curtailment.</p>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card green-border">
+          <div class="label">Calculated System Sizing</div>
+          <div class="value val-green" id="metricSizing">778 kWp / 500 kWh</div>
+        </div>
+        <div class="metric-card green-border">
+          <div class="label">Year 1 Net Client Savings</div>
+          <div class="value val-green" id="metricYear1Savings">R 2,181,667</div>
+        </div>
+        <div class="metric-card gold-border">
+          <div class="label">Total Portfolio CAPEX</div>
+          <div class="value val-gold" id="metricTotalCapex">R 10,000,000</div>
+        </div>
+        <div class="metric-card gold-border">
+          <div class="label">Annual O&M Reserve</div>
+          <div class="value val-gold" id="metricOmReserve">R 150,000</div>
+        </div>
+        <div class="metric-card gold-border">
+          <div class="label">Freedom Upfront Fee</div>
+          <div class="value val-gold" id="metricUpfrontFee">R 200,000</div>
+        </div>
+        <div class="metric-card gold-border">
+          <div class="label">Freedom Recurring (Yr 1)</div>
+          <div class="value val-gold" id="metricFreedomRec">R 34,650</div>
+        </div>
+        <div class="metric-card purple-border">
+          <div class="label">Investor Net Cash Flow (Yr 1)</div>
+          <div class="value val-purple" id="topInvestorCashFlow">R 846,040</div>
+        </div>
+        <div class="metric-card purple-border">
+          <div class="label">Retail Investor 1-Yr ROI</div>
+          <div class="value val-purple" id="topRetailRoi">28.2%</div>
+        </div>
+      </div>
+
+      <div class="chart-wrapper">
+        <canvas id="financialChart"></canvas>
+      </div>
+    </div>
+
+    <!-- MODULE 2: ARBITRAGE & SINKING FUND ENGINE -->
+    <div id="tab-arbitrage-engine" class="tab-content">
+      <div class="header">
+        <h2>Arbitrage Reinvestment & Battery Reserve Sinking Fund Engine</h2>
+        <p>Model auto-invested client savings against the standardized 8.8% interest-bearing battery refresh escrow account.</p>
+      </div>
+
+      <div class="controls-grid">
+        <div class="control-group">
+          <label>Host Reinvestment Rate: <span id="reinvestRateVal">50.0%</span></label>
+          <input type="range" id="reinvestRate" min="10.0" max="100.0" step="5.0" value="50.0">
+        </div>
+        <div class="control-group">
+          <label>Yield Pool Annual Return: <span id="poolReturnVal">8.8%</span></label>
+          <input type="range" id="poolReturn" min="4.0" max="18.0" step="0.1" value="8.8">
+        </div>
+        <div class="control-group">
+          <label>Battery Reserve Surplus: <span id="sinkingSurplusVal">R 19,300/yr</span></label>
+          <input type="range" id="sinkingSurplus" min="5000" max="100000" step="1000" value="19300">
+        </div>
+        <div class="control-group">
+          <label>Sinking Fund Escrow Rate: <span id="sinkingRateVal">8.8%</span></label>
+          <input type="range" id="sinkingRate" min="4.0" max="15.0" step="0.1" value="8.8">
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card green-border">
+          <div class="label">Year 1 Net Client Savings</div>
+          <div class="value val-green" id="arbYr1Savings">R 2,181,667</div>
+        </div>
+        <div class="metric-card blue-border">
+          <div class="label">Year 1 Auto-Reinvestment (50%)</div>
+          <div class="value val-blue" id="arbYr1Reinvest">R 1,090,833</div>
+        </div>
+        <div class="metric-card gold-border">
+          <div class="label">Year 7 Battery Sinking Pool</div>
+          <div class="value val-gold" id="sinkYr7Val">R 189,029</div>
+        </div>
+        <div class="metric-card purple-border">
+          <div class="label">Buyout Equilibrium Point</div>
+          <div class="value val-purple" id="arbEquilibriumText">Year 5</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+        <div class="equilibrium-badge" id="equilibriumBadge">
+          <span>🎯 Zero-Cash Buyout Equilibrium Achieved at Year <span id="badgeYearText">5</span></span>
+        </div>
+      </div>
+
+      <div class="chart-wrapper">
+        <canvas id="arbitrageChart"></canvas>
+      </div>
+
+      <!-- EMBEDDED ANALYSIS & BREAKDOWN TABLE -->
+      <div class="breakdown-box">
+        <h3>Year 7 Buyout Yield Pool Mathematical Analysis</h3>
+        <p>The variance between a flat linear sum (R1,090,833 × 7 = R7,635,831) and the Engine AUM curve (~R12.4 Million) is driven by two active model variables: <strong>5.0% annual tariff escalation</strong> on grid savings and <strong>8.8% annual compound growth</strong> on accumulated Yield Pool AUM.</p>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Annual Reinvestment (50% Savings w/ 5% Escalation)</th>
+              <th>Flat Linear Sum (No Escalation / No Return)</th>
+              <th>Yield Pool Cumulative AUM (5% Escalation + 8.8% Compound)</th>
+            </tr>
+          </thead>
+          <tbody id="breakdownTableBody">
+            <!-- Dynamically Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="footer">
+        *Sinking Fund Escrow Account deposits R 19,300 annually at 8.8% interest compound rate, reaching R 189,029 by Year 7 for zero-cost capacity augmentation.<br>
+        *Buyout Pool AUM assumes 50% of monthly client grid savings auto-directed into the Yield Pool compounding at 8.8% p.a.
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      if(tabId === 'simulator') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('tab-simulator').classList.add('active');
+      } else {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('tab-arbitrage-engine').classList.add('active');
+      }
+    }
+
+    const dealTypeSelect = document.getElementById('dealTypeSelect');
+    const capexSlider = document.getElementById('capex');
+    const capexText = document.getElementById('capexText');
+    const omPctInput = document.getElementById('omPct');
+    const targetRoiInput = document.getElementById('targetRoi');
+    const ppaInput = document.getElementById('ppa');
+    const arbitrageInput = document.getElementById('arbitrage');
+    const placementFeeInput = document.getElementById('placementFee');
+    const freedomRecPctInput = document.getElementById('freedomRecPct');
+    const creCommPctInput = document.getElementById('creCommPct');
+    const jibarInput = document.getElementById('jibar');
+
+    const ctx = document.getElementById('financialChart').getContext('2d');
+    let chart;
+
+    function formatZAR(val) {
+      const sign = val < 0 ? '-' : '';
+      return sign + 'R ' + Math.round(Math.abs(val)).toLocaleString('en-ZA');
+    }
+
+    capexSlider.addEventListener('input', () => {
+      capexText.value = parseInt(capexSlider.value, 10).toLocaleString('en-ZA');
+      renderAllEngines();
+    });
+
+    capexText.addEventListener('change', () => {
+      let rawVal = parseInt(capexText.value.replace(/\s+/g, ''), 10);
+      if (isNaN(rawVal)) rawVal = 10000000;
+      rawVal = Math.max(1000000, Math.min(25000000, rawVal));
+      capexSlider.value = rawVal;
+      capexText.value = rawVal.toLocaleString('en-ZA');
+      renderAllEngines();
+    });
+
+    function calculateFinancials() {
+      const liveInstallations = parseInt(dealTypeSelect.value, 10);
+      const capex = parseFloat(capexSlider.value);
+      const omRatePct = parseFloat(omPctInput.value) / 100;
+      const targetRoiPct = parseFloat(targetRoiInput.value) / 100;
+      const ppaRate = parseFloat(ppaInput.value);
+      const gridArbitrage = parseFloat(arbitrageInput.value);
+      const placementPct = parseFloat(placementFeeInput.value) / 100;
+      const freedomRecPct = parseFloat(freedomRecPctInput.value) / 100;
+      const creCommissionPct = parseFloat(creCommPctInput.value) / 100;
+      const jibarRate = parseFloat(jibarInput.value) / 100;
+
+      document.getElementById('dealTypeVal').innerText = liveInstallations === 1 ? 'Single Installation' : `${liveInstallations} Installations Portfolio`;
+      document.getElementById('omPctVal').innerText = `${(omRatePct * 100).toFixed(1)}%`;
+      document.getElementById('targetRoiVal').innerText = `${(targetRoiPct * 100).toFixed(1)}%`;
+      document.getElementById('ppaVal').innerText = `R${ppaRate.toFixed(2)}/kWh`;
+      
+      let gridText = `R${gridArbitrage.toFixed(2)}/kWh`;
+      if (gridArbitrage >= 7.00) {
+        gridText += ` (Winter Peak)`;
+      } else if (gridArbitrage >= 3.50) {
+        gridText += ` (Standard Municipal)`;
+      }
+      document.getElementById('arbitrageVal').innerText = gridText;
+
+      document.getElementById('placementVal').innerText = `${(placementPct * 100).toFixed(1)}%`;
+      document.getElementById('freedomRecVal').innerText = `${(freedomRecPct * 100).toFixed(1)}%`;
+      document.getElementById('creCommPctVal').innerText = `${(creCommissionPct * 100).toFixed(1)}%`;
+      document.getElementById('jibarVal').innerText = `${(jibarRate * 100).toFixed(2)}%`;
+
+      const totalCapex = capex * liveInstallations;
+      const solarKwp = ((capex * 0.70) / 9000) * liveInstallations;
+      const batteryKwh = ((capex * 0.30) / 6000) * liveInstallations;
+      document.getElementById('metricSizing').innerText = `${Math.round(solarKwp).toLocaleString()} kWp / ${Math.round(batteryKwh).toLocaleString()} kWh`;
+
+      const debtPrincipal = totalCapex * 0.70;
+      const equityAmount = totalCapex * 0.30;
+      const annualDebtPayment = (debtPrincipal * jibarRate) / (1 - Math.pow(1 + jibarRate, -10));
+
+      const annualKwhGenerated = solarKwp * 1650;
+      const year1PpaRevenue = annualKwhGenerated * ppaRate;
+      const year1GridSavings = annualKwhGenerated * gridArbitrage;
+      const year1NetClientSavings = year1GridSavings - year1PpaRevenue;
+
+      const upfrontPlacementFee = totalCapex * placementPct;
+      const year1FreedomRecurring = year1PpaRevenue * freedomRecPct;
+      const year1OM = totalCapex * omRatePct;
+      const year1CreCommission = year1PpaRevenue * creCommissionPct;
+
+      const noi = year1PpaRevenue - year1OM - year1CreCommission - year1FreedomRecurring;
+      const dscr = noi / annualDebtPayment;
+
+      document.getElementById('investecPrincipal').innerText = formatZAR(debtPrincipal);
+      document.getElementById('investecAnnualService').innerText = formatZAR(annualDebtPayment);
+      document.getElementById('equityAmountVal').innerText = formatZAR(equityAmount);
+      document.getElementById('investecDscrVal').innerText = `${dscr.toFixed(2)}x DSCR`;
+
+      const year1InvestorCashFlow = noi - annualDebtPayment;
+      const actualRoiPct = year1InvestorCashFlow / equityAmount;
+      const roiGapPts = (actualRoiPct - targetRoiPct) * 100;
+
+      document.getElementById('metricYear1Savings').innerText = formatZAR(year1NetClientSavings);
+      document.getElementById('metricTotalCapex').innerText = formatZAR(totalCapex);
+      document.getElementById('metricOmReserve').innerText = formatZAR(year1OM);
+      document.getElementById('metricUpfrontFee').innerText = formatZAR(upfrontPlacementFee);
+      document.getElementById('metricFreedomRec').innerText = formatZAR(year1FreedomRecurring);
+      document.getElementById('topInvestorCashFlow').innerText = formatZAR(year1InvestorCashFlow);
+      document.getElementById('topRetailRoi').innerHTML = `${(actualRoiPct * 100).toFixed(1)}% <span style="font-size:0.75rem;">(${roiGapPts >= 0 ? '+' : ''}${roiGapPts.toFixed(1)}pt vs target)</span>`;
+
+      let labels = [], investorAnnualFlows = [], investecDebtPayments = [];
+      for (let t = 1; t <= 15; t++) {
+        labels.push(`Year ${t}`);
+        const ppaRevT = year1PpaRevenue * Math.pow(1 + 0.05, t - 1);
+        const omT = year1OM * Math.pow(1 + 0.05, t - 1);
+        const creCommT = ppaRevT * creCommissionPct;
+        const freedomRecT = ppaRevT * freedomRecPct;
+        const noiT = ppaRevT - omT - creCommT - freedomRecT;
+        const debtPaymentT = t <= 10 ? annualDebtPayment : 0;
+        investorAnnualFlows.push(noiT - debtPaymentT);
+        investecDebtPayments.push(debtPaymentT);
+      }
+
+      return { labels, investorAnnualFlows, investecDebtPayments, year1NetClientSavings, totalCapex };
+    }
+
+    function renderChart() {
+      const data = calculateFinancials();
+      if (chart) { chart.destroy(); }
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.labels,
+          datasets: [
+            { label: 'Investor Net Cash Flow', data: data.investorAnnualFlows, backgroundColor: '#8D4EbC', borderRadius: 4 },
+            { label: 'Investec Debt Payments', data: data.investecDebtPayments, backgroundColor: '#46D19F', borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#cbd5e1' } } },
+          scales: { x: { grid: { color: '#334155' } }, y: { grid: { color: '#334155' } } }
+        }
+      });
+    }
+
+    // --- MODULE 2: SINKING FUND & ARBITRAGE LOGIC ---
+    const reinvestRateInput = document.getElementById('reinvestRate');
+    const poolReturnInput = document.getElementById('poolReturn');
+    const sinkingSurplusInput = document.getElementById('sinkingSurplus');
+    const sinkingRateInput = document.getElementById('sinkingRate');
+    const arbCtx = document.getElementById('arbitrageChart').getContext('2d');
+    let arbChart;
+
+    function renderArbitrageEngine() {
+      const baseFin = calculateFinancials();
+      const reinvestPct = parseFloat(reinvestRateInput.value) / 100;
+      const poolReturnPct = parseFloat(poolReturnInput.value) / 100;
+      const annualSurplus = parseFloat(sinkingSurplusInput.value);
+      const escrowRate = parseFloat(sinkingRateInput.value) / 100;
+
+      document.getElementById('reinvestRateVal').innerText = `${(reinvestPct * 100).toFixed(1)}%`;
+      document.getElementById('poolReturnVal').innerText = `${(poolReturnPct * 100).toFixed(1)}%`;
+      document.getElementById('sinkingSurplusVal').innerText = `R ${annualSurplus.toLocaleString()}/yr`;
+      document.getElementById('sinkingRateVal').innerText = `${(escrowRate * 100).toFixed(1)}%`;
+
+      const yr1Savings = baseFin.year1NetClientSavings;
+      const yr1Reinvest = yr1Savings * reinvestPct;
+      const totalCapex = baseFin.totalCapex;
+
+      document.getElementById('arbYr1Savings').innerText = formatZAR(yr1Savings);
+      document.getElementById('arbYr1Reinvest').innerText = formatZAR(yr1Reinvest);
+
+      let labels = [], poolAumData = [], sinkingFundData = [], assetBookValData = [];
+      let currentAum = 0, currentSinkingFund = 0;
+      let equilibriumYear = null;
+
+      // Clear & Populate Table
+      const tableBody = document.getElementById('breakdownTableBody');
+      tableBody.innerHTML = '';
+
+      let linearSum = 0;
+
+      for (let t = 1; t <= 15; t++) {
+        labels.push(`Year ${t}`);
+        
+        const annualSavingsT = yr1Savings * Math.pow(1 + 0.05, t - 1);
+        const currentReinvestment = annualSavingsT * reinvestPct;
+        
+        linearSum += yr1Reinvest; // Flat linear addition (no escalation, no compound)
+
+        currentAum = (currentAum + currentReinvestment) * (1 + poolReturnPct);
+        poolAumData.push(currentAum);
+
+        currentSinkingFund = (currentSinkingFund + annualSurplus) * (1 + escrowRate);
+        sinkingFundData.push(currentSinkingFund);
+
+        if (t === 7) {
+          document.getElementById('sinkYr7Val').innerText = formatZAR(currentSinkingFund);
+        }
+
+        const bookValueT = Math.max(totalCapex * 0.10, totalCapex - ((totalCapex * 0.90 / 15) * t));
+        assetBookValData.push(bookValueT);
+
+        if (currentAum >= bookValueT && equilibriumYear === null) {
+          equilibriumYear = t;
+        }
+
+        // Populate Table for Years 1 to 7
+        if (t <= 7) {
+          const row = document.createElement('tr');
+          if (t === 7) row.className = 'highlight-row';
+          row.innerHTML = `
+            <td>Year ${t}</td>
+            <td>${formatZAR(currentReinvestment)}</td>
+            <td>${formatZAR(linearSum)}</td>
+            <td style="color: var(--brand-blue); font-weight: 700;">${formatZAR(currentAum)}</td>
+          `;
+          tableBody.appendChild(row);
+        }
+      }
+
+      const eqText = equilibriumYear ? `Year ${equilibriumYear}` : 'Year 15+';
+      document.getElementById('arbEquilibriumText').innerText = eqText;
+      document.getElementById('badgeYearText').innerText = equilibriumYear || '15+';
+
+      if (arbChart) { arbChart.destroy(); }
+      arbChart = new Chart(arbCtx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: `Buyout Yield Pool (AUM at ${(poolReturnPct*100).toFixed(1)}%)`,
+              data: poolAumData,
+              borderColor: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.15)',
+              fill: true,
+              borderWidth: 3
+            },
+            {
+              label: `Battery Sinking Escrow Pool (${(escrowRate*100).toFixed(1)}% Compound)`,
+              data: sinkingFundData,
+              borderColor: '#E1AD10',
+              backgroundColor: 'rgba(225, 173, 16, 0.1)',
+              fill: true,
+              borderWidth: 2
+            },
+            {
+              label: 'Depreciated Asset Book Value',
+              data: assetBookValData,
+              borderColor: '#f87171',
+              borderDash: [6, 6],
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#cbd5e1' } } },
+          scales: { x: { grid: { color: '#334155' } }, y: { grid: { color: '#334155' } } }
+        }
+      });
+    }
+
+    function renderAllEngines() {
+      renderChart();
+      renderArbitrageEngine();
+    }
+
+    [dealTypeSelect, omPctInput, targetRoiInput, ppaInput, arbitrageInput, placementFeeInput, freedomRecPctInput, creCommPctInput, jibarInput, reinvestRateInput, poolReturnInput, sinkingSurplusInput, sinkingRateInput].forEach(input => {
+      input.addEventListener('input', renderAllEngines);
+      input.addEventListener('change', renderAllEngines);
+    });
+
+    renderAllEngines();
+  </script>
+</body>
+</html>
